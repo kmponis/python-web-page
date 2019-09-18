@@ -1,0 +1,44 @@
+version: "3"
+services:
+  # Add web services
+  web:
+    image: kbonis/get-started:part5
+    deploy:
+      replicas: 7
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+    ports:
+      - "4000:80"
+    networks:
+      - webnet
+  # Add Visualizer
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "9080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - webnet
+  # Add Redis DB
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/home/docker/data:/data"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    command: redis-server --appendonly yes
+    networks:
+      - webnet    
+networks:
+  webnet:

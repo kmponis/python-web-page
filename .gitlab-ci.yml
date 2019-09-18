@@ -1,0 +1,31 @@
+### Variables ###
+# $CI_PROJECT_NAME: project name
+# $CI_BUILD_REF_NAME: branch id
+# $CI_DTR: path to DTR, only external environment variable set at gitlab ui
+
+stages:
+  - build
+  - ship 
+  - run
+
+build:
+  stage: build
+  script:
+    - docker build --no-cache --build-arg CI_WORKDIR=$CI_PROJECT_NAME 
+                              --build-arg CI_BRANCH=$CI_BUILD_REF_NAME 
+                              --build-arg CI_GITURL=$CI_REPOSITORY_URL 
+                                  -t $CI_DTR/$CI_REPO_ROOT/$CI_PROJECT_NAME:$CI_BUILD_REF_NAME .
+
+ship:
+  stage: ship
+  script: 
+    - if [[ $CI_BUILD_REF_NAME == stable ]]; 
+      then docker exec signimage docker push $CI_DTR/$CI_REPO_ROOT/$CI_PROJECT_NAME:$CI_BUILD_REF_NAME;
+      else docker push $CI_DTR/$CI_REPO_ROOT/$CI_PROJECT_NAME:$CI_BUILD_REF_NAME; fi
+
+run:
+  stage: run
+  script:
+    - source /home/gitlab-runner/ucp/env.sh
+    - sed -i -e "s?<mesh_uid>?$(rand -N S -d -)?" docker-compose.yml
+    - docker stack deploy -c compose.yml $CI_PROJECT_NAME-$CI_BUILD_REF_NAME
